@@ -1,9 +1,13 @@
-For Okku 0.1.3.
+For Okku 0.1.4.
+
+Note that this is a forked version of this tutorial, modified to work with
+[my forked version](https://github.com/jacklund/okku) of okku, which works
+with Akka version 2.3.6.
 
 # Introduction
 
 This tutorial mirrors the [Java remoting
-tutorial](http://doc.akka.io/docs/akka/2.0.2/java/remoting.html) from the Akka
+tutorial](http://doc.akka.io/docs/akka/2.3.6/java/remoting.html) from the Akka
 documentation.
 
 The application we are going to code is a calculator server with two clients.
@@ -46,15 +50,17 @@ in a ``jar`` file).
 ## Setup
 
 Before we can begin writing code, we have to create a new project and set it up
-correctly. This is done by using ``lein new calculation`` and adding the
+correctly. This is done by using ``lein new calculation`` and adding
 ```clojure
-[org.clojure.gaverhae/okku "0.1.3"]
+  :plugins [[lein-git-deps  "0.0.1-SNAPSHOT"]]
+  :source-paths [".lein-git-deps/okku/src" "src"]
+  :git-dependencies [["https://github.com/jacklund/okku.git"]]
 ```
-to the ``:dependencies`` option and the
+and
 ```clojure
 :main calculation.core
 ```
-options to the ``project.clj``.
+to the ``project.clj``.
 
 If you read the corresponding Akka tutorial, they say you have to add a few
 items to the ``application.conf`` file to enable remote actors. Since Clojure
@@ -134,7 +140,9 @@ lein new lookup
 ```
 then edit ``project.clj`` to add
 ```
-[org.clojure.gaverhae/okku "0.1.3"]
+:plugins [[lein-git-deps  "0.0.1-SNAPSHOT"]]
+:source-paths [".lein-git-deps/okku/src" "src"]
+:git-dependencies [["https://github.com/jacklund/okku.git"]]
 ```
 to ``:dependencies`` and finally change the namespace declaration to
 ```clojure
@@ -156,7 +164,7 @@ following commands:
 ```clojure
 lookup.core=> (def as (actor-system "test" :port 2553))
 lookup.core=> (def ra (look-up "akka://CalculatorApplication@127.0.0.1:2552/user/simpleCalculator" :in as))
-lookup.core=> (.tell ra {:type :operation :op :+ :1 3 :2 5})
+lookup.core=> (.tell ra {:type :operation :op :+ :1 3 :2 5} nil)
 ```
 and you should see the correct output on the server.
 
@@ -199,7 +207,7 @@ Finally, we can create the main function:
                     :in as :name "looked-up")]
     (while true
       (.tell la (m-tell ra (m-op (if (zero? (rem (rand-int 100) 2)) :+ :-)
-                                 (rand-int 100) (rand-int 100))))
+                                 (rand-int 100) (rand-int 100))) nil)
       (try (Thread/sleep 2000)
         (catch InterruptedException e)))))
 ```
@@ -300,7 +308,7 @@ it remains strikingly similar:
     (while true
       (.tell la (m-tell ra (if (zero? (rem (rand-int 100) 2))
                              (m-op :* (rand-int 100) (rand-int 100))
-                             (m-op :d (rand-int 10000) (rand-int 99)))))
+                             (m-op :d (rand-int 10000) (rand-int 99)))) nil)
       (try (Thread/sleep 2000)
     (catch InterruptedException e)))))
 ```
@@ -322,12 +330,12 @@ actor system and the address of the remote one. This is done through the
 ``resources/application.conf`` file in each program. For example:
 ``calculation``
 ```config
-akka.remote.netty.hostname = "192.168.1.101"
-akka.remote.netty.port = 2652
+akka.remote.netty.tcp.hostname = "192.168.1.101"
+akka.remote.netty.tcp.port = 2652
 ```
 ``creation``
 ```config
-akka.remote.netty {
+akka.remote.netty.tcp {
   hostname = "192.168.1.101"
   port = 2653
 }
@@ -338,11 +346,13 @@ akka.actor.deployment./created.remote = "akka://CalculatorApplication@10.2.32.46
 akka {
   remote {
     netty {
-      hostname = "192.168.1.101"
+      tcp {
+        hostname = "192.168.1.101"
+      }
     }
   }
 }
-akka.remote.netty.port = 2654
+akka.remote.netty.tcp.port = 2654
 okku.lookup./lokked-up.hostname = "192.168.1.101"
 okku.lookup./lokked-up.port = 2652
 ```
